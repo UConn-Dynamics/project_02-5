@@ -23,15 +23,15 @@ the diagonal tracks. As the pistons move along the tracks, the rigid bar rotates
 2. $x_2-y_2-$ describes piston 2 position and orientation, $\theta_2$
 3. $x_3-y_3-$ describes the rigid bar position and orientation, $\theta_3$
 
-Each of the pistons are on tracks at $\pm 45^o$ and the rotating rigid
+Each of the pistons are on tracks at $\pm 45^{\circ}$ and the rotating rigid
 bar is 10 cm. The hinges are mounted to the center of the pistons
 connecting the ends of the rigid bar. 
  
-In this project, you need to 
+In this project, we 
 
 1. determine constraint equations $C(\mathbf{q},~t)$
-2. solve for the velocities, $\dot{q}$ and accelerations, $\ddot{q}$
-3. visualize the motion of the system as the rigid bar goes through at least one full rotation
+2. solve for the velocities, $\mathbf{\dot{q}}$ and accelerations, $\mathbf{\ddot{q}}$
+3. visualize the motion of the system as the rigid bar goes through one full rotation
 """
 
 # ╔═╡ f3c4b8f8-43c8-4e55-9813-bd67f06250e7
@@ -42,7 +42,7 @@ end;
 
 # ╔═╡ edead67a-f803-4114-8919-2e34d42f8f43
 md"""
-# 1. Defining Constraint Equations, $C(q,t)$
+# 1. Defining Constraint Equations, $C(\mathbf{q},t)$
 
 The system is constrained by the two sliding tracks, where two revolute joints connect pistons to a rigid bar. 
 
@@ -125,14 +125,17 @@ end
 
 # ╔═╡ 3d550ddd-5415-4e47-8746-63c30482f91d
 function gamma_accel(q, qdot)
-    _, _, _, _, _, _, _, _, th3 = q
-    _, _, _, _, _, _, _, _, th3_dot = qdot
-    
+    th3 = q[9]
+	th3_dot = qdot[9]
+    w = th3_dot^2
+    c = (L/2) * cos(th3) * w  #cosine term
+    s = (L/2) * sin(th3) * w  #sine term
+
     g = zeros(9)
-    g[5] =  (L/2) * cos(th3) * th3_dot^2
-    g[6] =  (L/2) * sin(th3) * th3_dot^2
-    g[7] = -(L/2) * cos(th3) * th3_dot^2
-    g[8] = -(L/2) * sin(th3) * th3_dot^2
+    g[5] =  c
+    g[6] =  s
+    g[7] = -c
+    g[8] = -s
     return g
 end
 
@@ -141,12 +144,13 @@ begin
 	#define t
 	t_span = range(0, pi, length=100)
 	#store
-	Q_hist = []
-	Qdot_hist = []
-	Qddot_hist = []
+	q_hist = []
+	qdot_hist = []
+	qddot_hist = []
 end
 
 # ╔═╡ 78547b96-5bbd-46f7-8cad-7b189f8e90ac
+# inital guess (inital condition)
 q_current = [-0.05, -0.05, pi/4, 0.05, -0.05, -pi/4, 0.0, -0.05, 0.0]
 
 # ╔═╡ 3ecaafbc-dbc4-4dd2-9636-cd8ac632a903
@@ -168,40 +172,65 @@ for t in t_span
     qddot = J \ gamma_accel(q_current, qdot)
     
     # Save step
-    push!(Q_hist, copy(q_current))
-    push!(Qdot_hist, copy(qdot))
-    push!(Qddot_hist, copy(qddot))
+    push!(q_hist, copy(q_current))
+    push!(qdot_hist, copy(qdot))
+    push!(qddot_hist, copy(qddot))
 end
+
+# ╔═╡ 61c9d1e0-97b0-4029-98c2-4c9c2f71a24b
+# tracing the path of the center of mass
 
 # ╔═╡ 44cb02d7-f639-4c97-87cf-4fb9ba3c4824
 anim = @animate for i in 1:length(t_span)
-    q = Q_hist[i]
+    q = q_hist[i]
     x1, y1, th1, x2, y2, th2, x3, y3, th3 = q
     
     # Base plot settings
-    plot(aspect_ratio=:equal, legend=:topright, grid=true, 
+    plot(aspect_ratio=:equal, legend=:topright, grid=true, dpi = 300,
          xlims=(-0.15, 0.15), ylims=(-0.15, 0.15),
          title="Dual Slider Mechanism\nt = $(round(t_span[i], digits=2)) s")
     
     # Draw the diagonal tracks
-    plot!([-0.15, 0.15], [-0.15, 0.15], color=:gray, linestyle=:dash, label="Track 1 (y=x)")
-    plot!([-0.15, 0.15], [0.15, -0.15], color=:gray, linestyle=:dash, label="Track 2 (y=-x)")
+    plot!([-0.15, 0.15], [-0.15, 0.15],
+		  color=:dimgray, alpha = 0.5, linewidth = 14, label = false)
+    plot!([-0.15, 0.15], [0.15, -0.15],
+		  color=:dimgray, alpha = 0.5, linewidth = 14, label = false)
+
+	# trace the COM - we expect circular motion
+	xs = [q_hist[k][7] for k in 1:i]
+	ys = [q_hist[k][8] for k in 1:i]
+	plot!(xs, ys,
+		  color=:seagreen, linewidth=2, alpha = 0.5, label=false)
     
     # Draw the rigid bar
     plot!([x1, x2], [y1, y2], color=:black, linewidth=4, label="Rigid Bar")
     
     # Draw the pistons
-    scatter!([x1], [y1], color=:blue, markersize=8, label="Piston 1")
-    scatter!([x2], [y2], color=:red, markersize=8, label="Piston 2")
+    scatter!([x1], [y1],
+			 color=:cornflowerblue, markershape=:diamond, markersize=8,
+			 label="Piston 1")
+    scatter!([x2], [y2],
+			 color=:salmon, markershape=:diamond, markersize=8,
+			 label="Piston 2")
     
     # Draw center of mass of the bar
-    scatter!([x3], [y3], color=:green, markersize=5, label="Center of Mass")
+    scatter!([x3], [y3], color=:mediumseagreen, markersize=5, label="Center of Mass")
 end
 
 # Save to a GIF
 
 # ╔═╡ abc5b784-0ea2-49a1-9adc-97285c9030cc
 gif(anim, "dual_slider_kinematics.gif", fps=15)
+
+# ╔═╡ df4a02e6-b0fd-41e4-951b-829cbcfd43e4
+md"""
+## Final remarks
+
+- this could be extended by ...
+
+- this concept is applied in (real world ex)... 
+
+"""
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -218,9 +247,9 @@ Plots = "~1.41.6"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.6"
+julia_version = "1.12.4"
 manifest_format = "2.0"
-project_hash = "196f15c024484d06de80ea4caf6e464cb0a4308e"
+project_hash = "e2fdabbf661475611888e0fdde55bc063c331e53"
 
 [[deps.AliasTables]]
 deps = ["PtrArrays", "Random"]
@@ -300,7 +329,7 @@ version = "0.13.1"
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
-version = "1.1.1+0"
+version = "1.3.0+1"
 
 [[deps.ConcurrentUtilities]]
 deps = ["Serialization", "Sockets"]
@@ -349,7 +378,7 @@ version = "0.9.5"
 [[deps.Downloads]]
 deps = ["ArgTools", "FileWatching", "LibCURL", "NetworkOptions"]
 uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
-version = "1.6.0"
+version = "1.7.0"
 
 [[deps.EpollShim_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -519,6 +548,11 @@ git-tree-sha1 = "b6893345fd6658c8e475d40155789f4860ac3b21"
 uuid = "aacddb02-875f-59d6-b918-886e6ef4fbf8"
 version = "3.1.4+0"
 
+[[deps.JuliaSyntaxHighlighting]]
+deps = ["StyledStrings"]
+uuid = "ac6e5ff7-fb65-4e79-a425-ec3bc9c03011"
+version = "1.12.0"
+
 [[deps.LAME_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "059aabebaa7c82ccb853dd4a0ee9d17796f7e1bc"
@@ -572,24 +606,24 @@ uuid = "b27032c2-a3e7-50c8-80cd-2d36dbcbfd21"
 version = "0.6.4"
 
 [[deps.LibCURL_jll]]
-deps = ["Artifacts", "LibSSH2_jll", "Libdl", "MbedTLS_jll", "Zlib_jll", "nghttp2_jll"]
+deps = ["Artifacts", "LibSSH2_jll", "Libdl", "OpenSSL_jll", "Zlib_jll", "nghttp2_jll"]
 uuid = "deac9b47-8bc7-5906-a0fe-35ac56dc84c0"
-version = "8.6.0+0"
+version = "8.15.0+0"
 
 [[deps.LibGit2]]
-deps = ["Base64", "LibGit2_jll", "NetworkOptions", "Printf", "SHA"]
+deps = ["LibGit2_jll", "NetworkOptions", "Printf", "SHA"]
 uuid = "76f85450-5226-5b5a-8eaa-529ad045b433"
 version = "1.11.0"
 
 [[deps.LibGit2_jll]]
-deps = ["Artifacts", "LibSSH2_jll", "Libdl", "MbedTLS_jll"]
+deps = ["Artifacts", "LibSSH2_jll", "Libdl", "OpenSSL_jll"]
 uuid = "e37daf67-58a4-590a-8e99-b0245dd2ffc5"
-version = "1.7.2+0"
+version = "1.9.0+0"
 
 [[deps.LibSSH2_jll]]
-deps = ["Artifacts", "Libdl", "MbedTLS_jll"]
+deps = ["Artifacts", "Libdl", "OpenSSL_jll"]
 uuid = "29816b5a-b9ab-546f-933c-edad1886dfa8"
-version = "1.11.0+1"
+version = "1.11.3+1"
 
 [[deps.Libdl]]
 uuid = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
@@ -634,7 +668,7 @@ version = "2.41.3+0"
 [[deps.LinearAlgebra]]
 deps = ["Libdl", "OpenBLAS_jll", "libblastrampoline_jll"]
 uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
-version = "1.11.0"
+version = "1.12.0"
 
 [[deps.LogExpFunctions]]
 deps = ["DocStringExtensions", "IrrationalConstants", "LinearAlgebra"]
@@ -668,7 +702,7 @@ uuid = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
 version = "0.5.16"
 
 [[deps.Markdown]]
-deps = ["Base64"]
+deps = ["Base64", "JuliaSyntaxHighlighting", "StyledStrings"]
 uuid = "d6f4376e-aef5-505a-96c1-9c027394607a"
 version = "1.11.0"
 
@@ -679,7 +713,8 @@ uuid = "739be429-bea8-5141-9913-cc70e7f3736d"
 version = "1.1.10"
 
 [[deps.MbedTLS_jll]]
-deps = ["Artifacts", "Libdl"]
+deps = ["Artifacts", "JLLWrappers", "Libdl"]
+git-tree-sha1 = "926c6af3a037c68d02596a44c22ec3595f5f760b"
 uuid = "c8ffd9c3-330d-5841-b78e-0817d7145fa1"
 version = "2.28.6+0"
 
@@ -700,7 +735,7 @@ version = "1.11.0"
 
 [[deps.MozillaCACerts_jll]]
 uuid = "14a3606d-f60d-562e-9121-12d972cd8159"
-version = "2023.12.12"
+version = "2025.11.4"
 
 [[deps.NaNMath]]
 deps = ["OpenLibm_jll"]
@@ -710,7 +745,7 @@ version = "1.1.3"
 
 [[deps.NetworkOptions]]
 uuid = "ca575930-c2e3-43a9-ace4-1e988b2c1908"
-version = "1.2.0"
+version = "1.3.0"
 
 [[deps.Ogg_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -721,12 +756,12 @@ version = "1.3.6+0"
 [[deps.OpenBLAS_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
 uuid = "4536629a-c528-5b80-bd46-f80d51c5b363"
-version = "0.3.27+1"
+version = "0.3.29+0"
 
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.5+0"
+version = "0.8.7+0"
 
 [[deps.OpenSSL]]
 deps = ["BitFlags", "Dates", "MozillaCACerts_jll", "NetworkOptions", "OpenSSL_jll", "Sockets"]
@@ -735,10 +770,9 @@ uuid = "4d8831e6-92b7-49fb-bdf8-b643e874388c"
 version = "1.6.1"
 
 [[deps.OpenSSL_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "c9cbeda6aceffc52d8a0017e71db27c7a7c0beaf"
+deps = ["Artifacts", "Libdl"]
 uuid = "458c3c95-2e84-50aa-8efc-19380b2a3a95"
-version = "3.5.5+0"
+version = "3.5.4+0"
 
 [[deps.Opus_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -754,7 +788,7 @@ version = "1.8.1"
 [[deps.PCRE2_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "efcefdf7-47ab-520b-bdef-62a2eaa19f15"
-version = "10.42.0+1"
+version = "10.44.0+1"
 
 [[deps.Pango_jll]]
 deps = ["Artifacts", "Cairo_jll", "Fontconfig_jll", "FreeType2_jll", "FriBidi_jll", "Glib_jll", "HarfBuzz_jll", "JLLWrappers", "Libdl"]
@@ -777,7 +811,7 @@ version = "0.44.2+0"
 [[deps.Pkg]]
 deps = ["Artifacts", "Dates", "Downloads", "FileWatching", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "Random", "SHA", "TOML", "Tar", "UUIDs", "p7zip_jll"]
 uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
-version = "1.11.0"
+version = "1.12.1"
 weakdeps = ["REPL"]
 
     [deps.Pkg.extensions]
@@ -868,7 +902,7 @@ uuid = "e99dba38-086e-5de3-a5b1-6e4c66e897c3"
 version = "6.10.2+1"
 
 [[deps.REPL]]
-deps = ["InteractiveUtils", "Markdown", "Sockets", "StyledStrings", "Unicode"]
+deps = ["InteractiveUtils", "JuliaSyntaxHighlighting", "Markdown", "Sockets", "StyledStrings", "Unicode"]
 uuid = "3fa0cd96-eef1-5676-8a61-b3b8758bbffb"
 version = "1.11.0"
 
@@ -944,7 +978,7 @@ version = "1.2.2"
 [[deps.SparseArrays]]
 deps = ["Libdl", "LinearAlgebra", "Random", "Serialization", "SuiteSparse_jll"]
 uuid = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
-version = "1.11.0"
+version = "1.12.0"
 
 [[deps.StableRNGs]]
 deps = ["Random"]
@@ -997,7 +1031,7 @@ version = "1.11.0"
 [[deps.SuiteSparse_jll]]
 deps = ["Artifacts", "Libdl", "libblastrampoline_jll"]
 uuid = "bea87d4a-7f5b-5778-9afe-8cc45184846c"
-version = "7.7.0+0"
+version = "7.8.3+2"
 
 [[deps.TOML]]
 deps = ["Dates"]
@@ -1215,7 +1249,7 @@ version = "1.6.0+0"
 [[deps.Zlib_jll]]
 deps = ["Libdl"]
 uuid = "83775a58-1f1d-513f-b197-d71354ab007a"
-version = "1.2.13+1"
+version = "1.3.1+2"
 
 [[deps.Zstd_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -1250,7 +1284,7 @@ version = "0.17.4+0"
 [[deps.libblastrampoline_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "8e850b90-86db-534c-a0d3-1478176c7d93"
-version = "5.11.0+0"
+version = "5.15.0+0"
 
 [[deps.libdecor_jll]]
 deps = ["Artifacts", "Dbus_jll", "JLLWrappers", "Libdl", "Libglvnd_jll", "Pango_jll", "Wayland_jll", "xkbcommon_jll"]
@@ -1309,12 +1343,12 @@ version = "1.1.7+0"
 [[deps.nghttp2_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "8e850ede-7688-5339-a07c-302acd2aaf8d"
-version = "1.59.0+0"
+version = "1.64.0+1"
 
 [[deps.p7zip_jll]]
-deps = ["Artifacts", "Libdl"]
+deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
 uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
-version = "17.4.0+2"
+version = "17.7.0+0"
 
 [[deps.x264_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -1347,7 +1381,9 @@ version = "1.13.0+0"
 # ╠═bf0f4b37-bc4e-46aa-a380-0693860f3803
 # ╠═78547b96-5bbd-46f7-8cad-7b189f8e90ac
 # ╠═3ecaafbc-dbc4-4dd2-9636-cd8ac632a903
+# ╠═61c9d1e0-97b0-4029-98c2-4c9c2f71a24b
 # ╠═44cb02d7-f639-4c97-87cf-4fb9ba3c4824
 # ╠═abc5b784-0ea2-49a1-9adc-97285c9030cc
+# ╠═df4a02e6-b0fd-41e4-951b-829cbcfd43e4
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
