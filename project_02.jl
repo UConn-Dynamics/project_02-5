@@ -23,15 +23,15 @@ the diagonal tracks. As the pistons move along the tracks, the rigid bar rotates
 2. $x_2-y_2-$ describes piston 2 position and orientation, $\theta_2$
 3. $x_3-y_3-$ describes the rigid bar position and orientation, $\theta_3$
 
-Each of the pistons are on tracks at $\pm 45^o$ and the rotating rigid
+Each of the pistons are on tracks at $\pm 45^{\circ}$ and the rotating rigid
 bar is 10 cm. The hinges are mounted to the center of the pistons
 connecting the ends of the rigid bar. 
  
-In this project, you need to 
+In this project, we 
 
 1. determine constraint equations $C(\mathbf{q},~t)$
-2. solve for the velocities, $\dot{q}$ and accelerations, $\ddot{q}$
-3. visualize the motion of the system as the rigid bar goes through at least one full rotation
+2. solve for the velocities, $\mathbf{\dot{q}}$ and accelerations, $\mathbf{\ddot{q}}$
+3. visualize the motion of the system as the rigid bar goes through one full rotation
 """
 
 # ╔═╡ f3c4b8f8-43c8-4e55-9813-bd67f06250e7
@@ -42,7 +42,7 @@ end;
 
 # ╔═╡ edead67a-f803-4114-8919-2e34d42f8f43
 md"""
-# 1. Defining Constraint Equations, $C(q,t)$
+# 1. Defining Constraint Equations, $C(\mathbf{q},t)$
 
 The system is constrained by the two sliding tracks, where two revolute joints connect pistons to a rigid bar. 
 
@@ -128,8 +128,8 @@ function gamma_accel(q, qdot)
     th3 = q[9]
 	th3_dot = qdot[9]
     w = th3_dot^2
-    c = (L/2) * cos(th3) * w
-    s = (L/2) * sin(th3) * w
+    c = (L/2) * cos(th3) * w  #cosine term
+    s = (L/2) * sin(th3) * w  #sine term
 
     g = zeros(9)
     g[5] =  c
@@ -144,12 +144,13 @@ begin
 	#define t
 	t_span = range(0, pi, length=100)
 	#store
-	Q_hist = []
-	Qdot_hist = []
-	Qddot_hist = []
+	q_hist = []
+	qdot_hist = []
+	qddot_hist = []
 end
 
 # ╔═╡ 78547b96-5bbd-46f7-8cad-7b189f8e90ac
+# inital guess (inital condition)
 q_current = [-0.05, -0.05, pi/4, 0.05, -0.05, -pi/4, 0.0, -0.05, 0.0]
 
 # ╔═╡ 3ecaafbc-dbc4-4dd2-9636-cd8ac632a903
@@ -171,46 +172,65 @@ for t in t_span
     qddot = J \ gamma_accel(q_current, qdot)
     
     # Save step
-    push!(Q_hist, copy(q_current))
-    push!(Qdot_hist, copy(qdot))
-    push!(Qddot_hist, copy(qddot))
+    push!(q_hist, copy(q_current))
+    push!(qdot_hist, copy(qdot))
+    push!(qddot_hist, copy(qddot))
 end
+
+# ╔═╡ 61c9d1e0-97b0-4029-98c2-4c9c2f71a24b
+# tracing the path of the center of mass
 
 # ╔═╡ 44cb02d7-f639-4c97-87cf-4fb9ba3c4824
 anim = @animate for i in 1:length(t_span)
-    q = Q_hist[i]
+    q = q_hist[i]
     x1, y1, th1, x2, y2, th2, x3, y3, th3 = q
     
     # Base plot settings
-    plot(aspect_ratio=:equal, legend=:topright, grid=true, 
+    plot(aspect_ratio=:equal, legend=:topright, grid=true, dpi = 300,
          xlims=(-0.15, 0.15), ylims=(-0.15, 0.15),
          title="Dual Slider Mechanism\nt = $(round(t_span[i], digits=2)) s")
     
     # Draw the diagonal tracks
     plot!([-0.15, 0.15], [-0.15, 0.15],
-		  color=:gray, alpha = 0.5, linewidth = 14, label = false)
+		  color=:dimgray, alpha = 0.5, linewidth = 14, label = false)
     plot!([-0.15, 0.15], [0.15, -0.15],
-		  color=:gray, alpha = 0.5, linewidth = 14, label = false)
+		  color=:dimgray, alpha = 0.5, linewidth = 14, label = false)
+
+	# trace the COM - we expect circular motion
+	xs = [q_hist[k][7] for k in 1:i]
+	ys = [q_hist[k][8] for k in 1:i]
+	plot!(xs, ys,
+		  color=:seagreen, linewidth=2, alpha = 0.5, label=false)
     
     # Draw the rigid bar
     plot!([x1, x2], [y1, y2], color=:black, linewidth=4, label="Rigid Bar")
     
     # Draw the pistons
     scatter!([x1], [y1],
-			 color=:blue, markershape=:diamond, markersize=8,
+			 color=:cornflowerblue, markershape=:diamond, markersize=8,
 			 label="Piston 1")
     scatter!([x2], [y2],
-			 color=:red, markershape=:diamond, markersize=8,
+			 color=:salmon, markershape=:diamond, markersize=8,
 			 label="Piston 2")
     
     # Draw center of mass of the bar
-    scatter!([x3], [y3], color=:green, markersize=5, label="Center of Mass")
+    scatter!([x3], [y3], color=:mediumseagreen, markersize=5, label="Center of Mass")
 end
 
 # Save to a GIF
 
 # ╔═╡ abc5b784-0ea2-49a1-9adc-97285c9030cc
 gif(anim, "dual_slider_kinematics.gif", fps=15)
+
+# ╔═╡ df4a02e6-b0fd-41e4-951b-829cbcfd43e4
+md"""
+## Final remarks
+
+- this could be extended by ...
+
+- this concept is applied in (real world ex)... 
+
+"""
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1361,7 +1381,9 @@ version = "1.13.0+0"
 # ╠═bf0f4b37-bc4e-46aa-a380-0693860f3803
 # ╠═78547b96-5bbd-46f7-8cad-7b189f8e90ac
 # ╠═3ecaafbc-dbc4-4dd2-9636-cd8ac632a903
+# ╠═61c9d1e0-97b0-4029-98c2-4c9c2f71a24b
 # ╠═44cb02d7-f639-4c97-87cf-4fb9ba3c4824
 # ╠═abc5b784-0ea2-49a1-9adc-97285c9030cc
+# ╠═df4a02e6-b0fd-41e4-951b-829cbcfd43e4
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
