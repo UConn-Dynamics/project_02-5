@@ -4,8 +4,8 @@ The goal of this project is to successfuly model a double slider crank mechanism
 ## NOTE:
 Due to some technical issues, not everyone was able to commit changes to this repository. With that being said, it feels most fair to make note of their contributions here:
 
-Christopher Taylor:
+Christopher Taylor: four-bar wiper example problem
 
-Clay Dodge: 
+Clay Dodge: radial engine example problem, final remarks
 
 For the rest of us, changes can be tracked normally through revision history on github.
